@@ -26,7 +26,7 @@ function SpectralMatchingFunction(arec::Vector{Float64},dt::Float64,tetha::Float
     #initial value of best misfit for all targets
     bestmisfitall::Float64=1000
     w::Vector{Float64}=2*pi./T1;
-    @fastmath @inbounds for OuterLoop=1:Outeriter
+    for OuterLoop=1:Outeriter
         #Step 1; calculate initial response
         u,t_peak,t_index,apeak,misfit,target=IniResponse(amod,t,m,tetha,dt,T1,w,target1)
         #Step 2; Least square scalling
