@@ -6,6 +6,7 @@ include("InitialC2.jl")
 include("PeriodSubset.jl")
 include("Zeropad.jl")
 using Statistics
+
 function SpectralMatchingFunction(arec::Vector{Float64},dt::Float64,tetha::Float64,avgtol::Float64,errortol::Float64,zeropad::Int64,
                                   Cgain::Float64,wavmag::Float64,CoffDiag::Float64,dbgain::Float64,dCgain::Float64,Broydeniter::Int64,Outeriter::Int64,
                                   Tall::Vector{Float64},T1range::Vector{Float64},T2range::Vector{Float64},T3range,targetall::Vector{Float64})

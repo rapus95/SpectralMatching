@@ -19,36 +19,36 @@ function BroydenFunc(Broydeniter::Int64,dbgain::Float64,dCgain::Float64,bestmisf
     deltamisfit::Vector{Float64}=fill(0,length(T),1)
     wavtot::Vector{Float64}=fill(0,length(t)); #resetting total adjustment wavelets
     uw::Vector{Float64}=Vector{Float64}(undef,length(t))
+    @. tj::Vector{Float64} = t-tpeak
+    @. Coff::Vector{Float64}=P*C
+    DF::Vector{Int64} = setdiff(1:length(Coff),1:size(Coff)[1]+1:length(Coff))
+    @. Coff[DF]=CoffDiag.*Coff[DF]; #suggested value 0.7
+    @. ks::Vector{Int64}=m*w^2
+    @. c::Vector{Int64}=2*m*w*tetha
+    @. a1::Vector{Int64}=1/(betha*increment^2)*m+gamma/(betha*increment)*c
+    @. a2::Vector{Int64}=1/(betha*increment)*m+(gamma/betha-1)*c
+    @. a3::Vector{Int64}=(1/2/betha-1)*m+increment*(gamma/2/betha-1)*c
+    @. kh::Vector{Int64}=ks+a1
+    @. wj::Vector{Int64}=w*sqrt(1-tetha^2);  
+    @. gf::Vector{Int64}=1.178*(1/T)^-0.93
     for q=1:Broydeniter #Broyden loop 
         previousmeanmisfit::Float64=mean(abs.(misfit))
-        Coff::Vector{Float64}=P*C
-        DF::Vector{Int64} = setdiff(1:length(Coff),1:size(Coff)[1]+1:length(Coff))
-        Coff[DF]=CoffDiag.*Coff[DF]; #suggested value 0.7
+        
         deltab::Vector{Float64}=dbgain.*(Coff\misfit)
         deltab = reshape(deltab,(size(deltab)[1],1))
         ns::Vector{Float64}=deltab'*deltab
         b=b.+deltab'
+        
         fill!(0,uw)
         for j=1:length(T)    #wavelet          
             uwdot::Float64=0
-            @. wj::Float64=w[j]*sqrt(1-tetha^2);  
-            tshift::Float64=t_peak[j];#min(t_peak[j],3.9223*(1/Tn[j])^.-0.845)
-            @. tj::Vector{Float64}=t-tshift;   
-            gf::Float64=1.178.*(1/T[j])^.-0.93
             
-            @. wav::Vector{Float64}=wavmag*b[j]*cos(wj*tj)*exp((tj/gf)^2)*m
-            @. ks::Float64=m*w[j]^2
-            c::Float64=2*m*w[j]*tetha
-            @. uwddot::Float64=(wav[1]-c*uwdot-ks*uw[1])/m
-            
-            a1::Float64=1/(betha*increment^2).*m+gamma/(betha*increment).*c
-            a2::Float64=1/(betha*increment).*m+(gamma/betha-1).*c
-            a3::Float64=(1/2/betha-1).*m+increment*(gamma/2/betha-1).*c
-            kh::Float64=ks+a1
+            @. wav::Vector{Float64}=wavmag*b[j]*cos(wj[i]*tj[i])*exp((tj[i]/gf[i])^2)*m
+            @. uwddot::Float64=(wav[1]-c[i]*uwdot-ks[i]*uw[1])/m
             
             for k=1:length(t)-1
-                ph::Float64=wav[k+1]+a1*uw[k]+a2*uwdot+a3*uwddot
-                uw[k+1]=ph/kh
+                ph::Float64=wav[k+1]+a1[i]*uw[k]+a2[i]*uwdot+a3[i]*uwddot
+                uw[k+1]=ph/kh[i]
                 uwdoti::Float64=uwdot
                 uwdot=gamma/(betha*increment).*(uw[k+1].-uw[k])+(1 .-gamma/betha).*uwdot+increment*(1 .-gamma/2/betha)*uwddot
                 uwddot=1/(betha*increment^2).*(uw[k+1].-uw[k])-1/(betha*increment).*uwdoti.-(1/2/betha-1)*uwddot
@@ -62,8 +62,8 @@ function BroydenFunc(Broydeniter::Int64,dbgain::Float64,dCgain::Float64,bestmisf
             dTj::Float64=tw_peak.-t_peak[j];              #time shifting
             
             #Shifted wavelet
-            tj=t.-tshift.+dTj; 
-            wav=wavmag.*b[j].*cos.(wj.*tj).*exp.(-(tj./gf).^2).*m
+            tj=t.-t_peak[j].+dTj; 
+            wav=wavmag.*b[j].*cos.(wj[i].*tj[i]).*exp.(-(tj[i]./gf[i]).^2).*m
             wavtot=wavtot.+wav';                 #Total wavelet
         end #end of j [wavelet]
 
@@ -71,18 +71,11 @@ function BroydenFunc(Broydeniter::Int64,dbgain::Float64,dCgain::Float64,bestmisf
             fill!(0,uw)
             uwdot::Float64=0
 
-            ks::Float64=m.*w[i]^2
-            c::Float64=2*m*w[i]*tetha
-            uwddot::Float64=(wavtot[1].-c.*uwdot.-ks.*uw[1])/m
+            uwddot::Float64=(wavtot[1].-c[i].*uwdot.-ks[i].*uw[1])/m
 
-            a1::Float64=1/(betha*increment^2).*m+gamma/(betha*increment).*c
-            a2::Float64=1/(betha*increment).*m+(gamma/betha-1).*c
-            a3::Float64=(1/2/betha-1).*m+increment*(gamma/2/betha-1).*c
-            kh::Float64=ks+a1
-        
             for j=1:length(t)-1
-                ph::Float64=wavtot[j+1]+a1*uw[j]+a2*uwdot+a3*uwddot
-                uw[j+1]=ph/kh
+                ph::Float64=wavtot[j+1]+a1[i]*uw[j]+a2[i]*uwdot+a3[i]*uwddot
+                uw[j+1]=ph/kh[i]
                 uwdoti::Float64=uwdot
                 uwdot=gamma/(betha*increment).*(uw[j+1].-uw[j])+(1 .-gamma/betha).*uwdot+increment*(1 .-gamma/2/betha)*uwddot
                 uwddot=1/(betha*increment^2).*(uw[j+1].-uw[j])-1/(betha*increment).*uwdoti.-(1/2/betha-1)*uwddot

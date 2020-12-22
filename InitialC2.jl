@@ -12,29 +12,24 @@ function InitialC2(T::Vector{Float64},w::Vector{Float64},m::Float64,tetha::Float
     gamma::Float64=0.5
     betha::Float64=0.25
     uw::Vector{Float64}=Vector{Float64}(undef,length(t))
+    @. wj::Vector{Float64}=w*sqrt(1-tetha^2);  
+    @. tj::Vector{Float64}=t-t_peak+dTj;  
+    @. gf::Vector{Float64}=1.178*(1/T)^-0.93
+    @. ks::Vector{Int64}=m*w^2
+    @. c::Vector{Int64}=2*m*w*tetha
+    @. a1::Vector{Int64}=1/(betha*increment^2)*m+gamma/(betha*increment)*c
+    @. a2::Vector{Int64}=1/(betha*increment)*m+(gamma/betha-1)*c
+    @. a3::Vector{Int64}=(1/2/betha-1)*m+increment*(gamma/2/betha-1)*c
+    @. kh::Vector{Int64}=ks+a1
     for i=1:length(T) #structure
         fill!(0,uw)
         uwdot::Float64=0
-
-        wj::Float64=w[i]*sqrt(1-tetha^2);  
-        tshift::Float64=t_peak[i]
-        tj::Vector{Float64}=t.-tshift.+dTj[i];   
-        gf::Float64=1.178.*(1/T[i])^-0.93
-        wav[i,:]=@. wavmag*cos(wj*tj)*exp(-(tj/gf)^2)*m*b[i]
-        #wavfunc!(wav,wavmag.*cos.(wj.*tj).*exp.(-(tj./gf).^2).*m.*b[i],i)
+        @. wav[i,:]=wavmag*cos(wj[i]*tj[i])*exp(-(tj[i]/gf[i])^2)*m*b[i]
         
-        ks::Float64=m.*w[i]^2
-        c::Float64=2*m*w[i]*tetha
-        uwddot::Float64=(wav[i,1]-c.*uwdot-ks.*uw[1])/m
-
-        a1::Float64=1/(betha*increment^2).*m+gamma/(betha*increment).*c
-        a2::Float64=1/(betha*increment).*m+(gamma/betha-1).*c
-        a3::Float64=(1/2/betha-1).*m+increment*(gamma/2/betha-1).*c
-        kh::Float64=ks+a1
-        
+        @. uwddot::Float64=(wav[i,1]-c[i]*uwdot-ks[i]*uw[1])/m        
         for j=1:length(t)-1
-            ph::Float64=wav[i,j+1]+a1*uw[j]+a2*uwdot+a3*uwddot
-            uw[j+1]=ph/kh
+            ph::Float64=wav[i,j+1]+a1[i]*uw[j]+a2[i]*uwdot+a3[i]*uwddot
+            uw[j+1]=ph/kh[i]
             uwdoti::Float64=uwdot
             uwdot=gamma/(betha*increment).*(uw[j+1]-uw[j])+(1-gamma/betha).*uwdot+increment*(1-gamma/2/betha)*uwddot
             uwddot=1/(betha*increment^2).*(uw[j+1]-uw[j])-1/(betha*increment).*uwdoti-(1/2/betha-1)*uwddot
@@ -47,8 +42,8 @@ function InitialC2(T::Vector{Float64},w::Vector{Float64},m::Float64,tetha::Float
         tw_peak[i]=(tw_index[i]-1).*increment; 
 
         dTj[i]=tw_peak[i]-t_peak[i]
-        tj=t.-tshift.+dTj[i]
-        wav[i,:]=wavmag.*cos.(wj.*tj).*exp.(-(tj./gf).^2).*m.*b[i]
+        @. tj=t-t_peak[i]+dTj[i]
+        wav[i,:]=wavmag.*cos.(wj[i].*tj).*exp.(-(tj./gf[i]).^2).*m.*b[i]
     end
    
     tw_peak=zeros(length(T),length(T))
@@ -60,26 +55,18 @@ function InitialC2(T::Vector{Float64},w::Vector{Float64},m::Float64,tetha::Float
         for k=1:length(T) #wavelets
             uwdot::Float64=0
         
-            ks::Float64=m.*w[i]^2
-            c::Float64=2*m*w[i]*tetha
-            uwddot::Float64=(wav[k,1]-c.*uwdot-ks.*uw[1])/m
-
-            a1::Float64=1/(betha*increment^2).*m+gamma/(betha*increment).*c
-            a2::Float64=1/(betha*increment).*m+(gamma/betha-1).*c
-            a3::Float64=(1/2/betha-1).*m+increment*(gamma/2/betha-1).*c
-            kh::Float64=ks+a1
+            uwddot::Float64=(wav[k,1]-c[i].*uwdot-ks[i].*uw[1])/m
             
             for j=1:length(t)-1
-                ph::Float64=wav[k,j+1]+a1*uw[j]+a2*uwdot+a3*uwddot
-                uw[j+1]=ph/kh
+                ph::Float64=wav[k,j+1]+a1[i]*uw[j]+a2[i]*uwdot+a3[i]*uwddot
+                uw[j+1]=ph/kh[i]
                 uwdoti::Float64=uwdot
                 uwdot=gamma/(betha*increment).*(uw[j+1]-uw[j])+(1-gamma/betha).*uwdot+increment*(1-gamma/2/betha)*uwddot
                 uwddot=1/(betha*increment^2).*(uw[j+1]-uw[j])-1/(betha*increment).*uwdoti-(1/2/betha-1)*uwddot
-                #uddot[i,j+1]=1/(betha*increment^2).*(u[i,j+1]-u[i,j])-1/(betha*increment).*udot[i,j]-(1/2/betha-1)*uddot[i,j]
             end
             
             # Find peak time of each wavelet
-            absltw::Vector{Float64}=abs.(uw[:]).*w[i]^2
+            @. absltw::Vector{Float64}=abs(uw[:])*w[i]^2
             Rw::Float64=maximum(absltw)
             tw_index[k]=convert(Int64,findall(x->x==Rw,absltw)[1])
             tw_peak[k,i]=(tw_index[k]-1).*increment; 
@@ -87,7 +74,7 @@ function InitialC2(T::Vector{Float64},w::Vector{Float64},m::Float64,tetha::Float
         end 
     end
     # tw_peak=diag(tw_peak)
-    Cini::Vector{Float64}=Cgain.*C
+    @. Cini::Vector{Float64}=Cgain*C
     # Reduced off-diagonal C matrix
     DF::Vector{Int64} = setdiff(1:length(C),1:size(C)[1]+1:length(C))
     C[DF]=CoffDiag.*C[DF]; #suggested value 0.7
@@ -104,25 +91,16 @@ function InitialC2(T::Vector{Float64},w::Vector{Float64},m::Float64,tetha::Float
     for i=1:length(T) #structure
         fill!(0,uw)
         uwdot::Float64=0
-        ks::Float64=m.*w[i]^2
-        c::Float64=2*m*w[i]*tetha
-        uwddot::Float64=(atot[1]-c.*uwdot-ks.*uw[1])/m
-
-        a1::Float64=1/(betha*increment^2).*m+gamma/(betha*increment).*c
-        a2::Float64=1/(betha*increment).*m+(gamma/betha-1).*c
-        a3::Float64=(1/2/betha-1).*m+increment*(gamma/2/betha-1).*c
-        kh::Float64=ks+a1
-
         for j=1:length(t)-1
-            ph::Float64=atot[j+1]+a1*uw[j]+a2*uwdot+a3*uwddot
-            uw[j+1]=ph/kh
+            ph::Float64=atot[j+1]+a1[i]*uw[j]+a2[i]*uwdot+a3[i]*uwddot
+            uw[j+1]=ph/kh[i]
             uwdoti::Float64=uwdot
             uwdot=gamma/(betha*increment).*(uw[j+1]-uw[j])+(1-gamma/betha).*uwdot+increment*(1-gamma/2/betha)*uwddot
             uwddot=1/(betha*increment^2).*(uw[j+1]-uw[j])-1/(betha*increment).*uwdoti-(1/2/betha-1)*uwddot
         end
         
         # Find peak time of each wavelet   
-        abslt::Vector{Float64}=abs.(uw).*w[i]^2
+        @. abslt::Vector{Float64}=abs(uw)*w[i]^2
         R::Float64=maximum(abslt)
         tw_index1::Int64= findall(x->x==R,abslt)[1]
         apeaknew::Float64=uw[tw_index1]*w[i]^2
