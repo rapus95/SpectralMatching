@@ -6,27 +6,27 @@ include("InitialC2.jl")
 include("PeriodSubset.jl")
 include("Zeropad.jl")
 using Statistics
-function SpectralMatchingFunction(arec::Array{Float64},dt::Float64,tetha::Float64,avgtol::Float64,errortol::Float64,zeropad::Int64,
+function SpectralMatchingFunction(arec::Vector{Float64},dt::Float64,tetha::Float64,avgtol::Float64,errortol::Float64,zeropad::Int64,
                                   Cgain::Float64,wavmag::Float64,CoffDiag::Float64,dbgain::Float64,dCgain::Float64,Broydeniter::Int64,Outeriter::Int64,
-                                  Tall::Array{Float64},T1range::Array{Float64},T2range::Array{Float64},T3range,targetall::Array{Float64})
+                                  Tall::Vector{Float64},T1range::Vector{Float64},T2range::Vector{Float64},T3range,targetall::Vector{Float64})
     
     #Properties
     m::Float64=1;                        #mass
     iter::Int64=1;                     #starting iteration count
-    wall::Array{Float64}=2*pi./Tall
+    wall::Vector{Float64}=2*pi./Tall
 
     #Zero padding at start & end of acceleration
     arec,t=Zeropad(zeropad,arec,dt)
-    abest::Array{Float64}=arec; 
-    amod::Array{Float64}=arec
+    abest::Vector{Float64}=arec; 
+    amod::Vector{Float64}=arec
 
     #Form the period subset
-    T1::Array{Float64},T2,T3,target1::Array{Float64},target2,target3=PeriodSubset(Tall,T1range,T2range,T3range,targetall)
+    T1::Vector{Float64},T2,T3,target1::Vector{Float64},target2,target3=PeriodSubset(Tall,T1range,T2range,T3range,targetall)
     
     #initial value of best misfit for all targets
     bestmisfitall::Float64=1000
-    w::Array{Float64}=2*pi./T1;
-    for OuterLoop=1:Outeriter
+    w::Vector{Float64}=2*pi./T1;
+    @fastmath @inbounds for OuterLoop=1:Outeriter
         #Step 1; calculate initial response
         u,t_peak,t_index,apeak,misfit,target=IniResponse(amod,t,m,tetha,dt,T1,w,target1)
         #Step 2; Least square scalling
@@ -34,7 +34,7 @@ function SpectralMatchingFunction(arec::Array{Float64},dt::Float64,tetha::Float6
         #Step 3: Scale the acceleration time series based on the least square fit
         u,t_peak,t_index,apeak,misfit,_=IniResponse(amod,t,m,tetha,dt,T1,w,target1)
         #Step 4; calculate initial b; initial C & initial misfit
-        @time b,C,misfit,wavtot=InitialC2(T1,w,m,tetha,dt,t_peak,t_index,t,Cgain,target1,misfit,amod,CoffDiag,wavmag)
+        b,C,misfit,wavtot=InitialC2(T1,w,m,tetha,dt,t_peak,t_index,t,Cgain,target1,misfit,amod,CoffDiag,wavmag)
       
         #Step 5; Broyden Loop
         bestmisfit::Float64=mean(abs.(misfit))
